@@ -1,0 +1,85 @@
+# Copier template for OBS Studio plugins packaged as snaps.
+#
+# The generated project follows the layout of the other
+# *-obs-studio-snap examples in this repository:
+#
+#   - core24, strict confinement, amd64
+#   - an "obs-plugins" content-interface slot consumed by the
+#     obs-studio snap (https://snapcraft.io/obs-studio)
+#   - a "prepare-hook" part that tells the obs-studio snap which snap
+#     is providing the plugins
+#   - a cmake part that builds the plugin against the libobs headers
+#     shipped in the obs-studio snap
+#   - a CI workflow that delegates to the shared reusable workflow in
+#     the obs-plugins-snaps/workflows repository
+
+_min_copier_version: "9.0.0"
+
+# Jinja templates use the .j2 suffix instead of the default .jinja.
+_templates_suffix: ".j2"
+
+# Everything to be rendered lives in this subdirectory; the files next to
+# copier.yaml (this file and the template's own README.md) are documentation
+# for the template itself and are not copied into generated projects.
+_subdirectory: template
+
+plugin_name:
+  type: str
+  help: |
+    Upstream plugin project name. Lowercase letters, digits, and dashes;
+    "-obs-studio" will be appended to build the snap name.
+  placeholder: source-record
+  validator: >-
+    {% if not (plugin_name | regex_search('^[a-z]([a-z0-9-]*[a-z0-9])?$')) %}
+    Use lowercase letters, digits, and dashes; start with a letter, end with
+    a letter or digit.
+    {% endif %}
+
+source_url:
+  type: str
+  help: Git URL of the upstream plugin repository
+  placeholder: https://github.com/exeldro/obs-source-record.git
+  validator: "{% if not source_url %}A Git URL is required{% endif %}"
+
+summary:
+  type: str
+  help: One-line summary (maximum 78 characters)
+  validator: >-
+    {% if not summary %}A summary is required{% endif %}
+    {% if summary | length > 78 %}Maximum 78 characters{% endif %}
+
+version:
+  type: str
+  help: Version of the plugin to package (maximum 32 characters)
+  default: "0.1.0"
+  validator: >-
+    {% if not (version | regex_search('^[a-zA-Z0-9](?:[a-zA-Z0-9:.+~-]{0,30}[a-zA-Z0-9+~])?$')) %}
+    Snap versions allow up to 32 characters: letters, digits, and : . + ~ -
+    ; must start with a letter or digit, and end with a letter, digit, + or ~
+    {% endif %}
+
+description:
+  type: str
+  help: Longer description of what the plugin does (defaults to the summary)
+  multiline: true
+  default: "{{ summary }}"
+
+license:
+  type: str
+  help: SPDX license identifier of the plugin (e.g. GPL-3.0, MIT); leave
+    empty to omit the field
+  default: ""
+
+# Computed values, not asked and not recorded in the answers file.
+snap_name:
+  when: false
+  default: "{{ plugin_name }}-obs-studio"
+title:
+  when: false
+  default: "{{ plugin_name | replace('-', ' ') | title }} (OBS plugin)"
+package_url:
+  when: false
+  default: "https://github.com/obs-plugins-snaps/{{ snap_name }}-snap"
+website:
+  when: false
+  default: "{{ source_url | regex_replace('\\.git$', '') }}"

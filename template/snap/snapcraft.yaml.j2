@@ -1,0 +1,69 @@
+name: {{ snap_name }}
+base: core24
+version: '{{ version }}'
+title: {{ title }}
+summary: "{{ summary }}"
+description: |
+{%- for paragraph in description.split('\n\n') %}
+{{ paragraph | wordwrap(76) | indent(2, true) }}
+{% endfor %}
+website: {{ website }}
+source-code: {{ package_url }}
+contact: {{ package_url }}
+issues: {{ package_url }}
+{% if license %}license: {{ license }}
+{% endif %}
+
+grade: devel
+confinement: strict
+
+platforms:
+  amd64:
+
+slots:
+  obs-plugins:
+    interface: content
+    source:
+      read:
+        - /${CRAFT_PROJECT_NAME}
+
+parts:
+  prepare-hook:
+    plugin: nil
+    override-build: |
+      mkdir -p ${CRAFT_PART_INSTALL}/snap/hooks/
+      echo -e '#!/bin/bash\nsnapctl set :obs-plugins snapname='"${CRAFT_PROJECT_NAME}" > ${CRAFT_PART_INSTALL}/snap/hooks/prepare-slot-obs-plugins
+      chmod +x ${CRAFT_PART_INSTALL}/snap/hooks/prepare-slot-obs-plugins
+
+  {{ plugin_name }}:
+    source: {{ source_url }}
+    source-type: git
+    plugin: cmake
+    build-environment:
+      - CMAKE_PREFIX_PATH: "/snap/obs-studio/current/usr/"
+    cmake-parameters:
+      - -DBUILD_OUT_OF_TREE=On
+      - -DENABLE_FRONTEND_API=ON
+      - -DENABLE_QT=ON
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - -DCMAKE_C_FLAGS=-Wno-deprecated-declarations
+      - -DLINUX_PORTABLE=OFF
+      - -G Ninja
+    build-packages:
+      - ninja-build
+      - qt6-base-dev
+      - qt6-svg-dev
+    build-snaps:
+      - obs-studio/latest/stable
+    organize:
+      usr/lib/obs-plugins/*.so: ${CRAFT_PROJECT_NAME}/plugins/
+      usr/lib/*/obs-plugins/*.so: ${CRAFT_PROJECT_NAME}/plugins/
+      usr/local/lib/obs-plugins/**/*.so: ${CRAFT_PROJECT_NAME}/plugins/
+      usr/share/obs/obs-plugins/*: ${CRAFT_PROJECT_NAME}/data/
+      usr/local/data/obs-plugins/*: ${CRAFT_PROJECT_NAME}/data/
+    prime:
+      - -usr/lib/obs-plugins
+      - -usr/lib/*/obs-plugins
+      - -usr/share/obs/obs-plugins
+      - -usr/local

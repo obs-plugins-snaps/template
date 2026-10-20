@@ -1,0 +1,36 @@
+# {{ title }} Snap for OBS Studio
+
+This snap delivers [{{ plugin_name }}]({{ source_url }}) to the
+[OBS Studio snap](https://snapcraft.io/obs-studio).
+
+{{ description | wordwrap(76) }}
+
+## Installation
+
+### Install from the Store
+
+Once the snap is published in the store:
+
+```shell
+sudo snap install {{ snap_name }}
+```
+
+### Connect to the OBS Studio snap
+
+```shell
+sudo snap connect obs-studio:obs-plugins {{ snap_name }}:obs-plugins
+```
+
+Once connected, the plugin will be available in OBS Studio after restarting it.
+
+## Building locally
+
+```shell
+snapcraft
+```
+
+The plugin is built against the libobs headers shipped in the
+`obs-studio` snap, so no local OBS build is required.
+
+The snap starts in `devel` grade; flip it to `stable` in
+`snap/snapcraft.yaml` once the packaged plugin is verified to work.
