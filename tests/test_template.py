@@ -48,6 +48,9 @@ def test_answers_file_content(copie):
     # Computed values are not recorded.
     assert "snap_name" not in recorded
     assert "title" not in recorded
+    # The version changes on every release, so it is a secret question:
+    # prompted and rendered, but never persisted to the answers file.
+    assert "version" not in recorded
 
 
 def test_snap_name_appends_suffix(copie):
@@ -70,6 +73,11 @@ def test_version_defaults_to_placeholder(copie):
 def test_version_is_used_verbatim(copie):
     """An explicit version is rendered as-is, without any sanitization."""
     assert "version: '0.4.8'" in snapcraft_yaml(make_project(copie, version="0.4.8"))
+
+
+def test_version_is_not_recorded_in_answers(copie):
+    """The version is a secret question: not persisted for future updates."""
+    assert "version" not in answers_file(make_project(copie, version="0.4.8"))
 
 
 def test_license_defaults_to_omitted(copie):
