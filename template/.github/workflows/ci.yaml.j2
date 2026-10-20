@@ -1,11 +1,10 @@
-name: CI
+name: Build snap
+
 on:
-  push:
-    branches: [main]
   pull_request:
 
 jobs:
-  call-central-workflow:
+  build:
     uses: obs-plugins-snaps/workflows/.github/workflows/build-snap.yml@main
     with:
       plugin_name: "{{ plugin_name }}"

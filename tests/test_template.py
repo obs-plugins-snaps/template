@@ -33,6 +33,8 @@ def test_copied_project_layout(copie):
     assert (result.project_dir / "snap" / "snapcraft.yaml").is_file()
     assert (result.project_dir / "README.md").is_file()
     assert (result.project_dir / ".github" / "workflows" / "ci.yaml").is_file()
+    assert (result.project_dir / ".github" / "workflows" / "release.yaml").is_file()
+    assert (result.project_dir / ".github" / "workflows" / "promote.yaml").is_file()
     assert (result.project_dir / ".copier-answers.yml").is_file()
     assert (result.project_dir / ".gitignore").is_file()
     # Template-own files must not be copied.
@@ -190,14 +192,66 @@ def test_readme_mentions_snap_name(copie):
     )
 
 
-def test_ci_workflow_calls_central_workflow(copie):
-    """The CI workflow delegates to the shared build-snap reusable workflow."""
+def test_ci_workflow_calls_central_workflows(copie):
+    """ci.yaml builds on pull requests via the shared reusable workflow."""
     ci_yaml = make_project(copie).project_dir / ".github" / "workflows" / "ci.yaml"
     workflow = yaml.safe_load(ci_yaml.read_text())
-    job = workflow["jobs"]["call-central-workflow"]
-    central = "obs-plugins-snaps/workflows/.github/workflows/build-snap.yml@main"
-    assert job["uses"] == central
-    assert job["with"]["plugin_name"] == "source-record"
+    # YAML 1.1 parses the `on` key as the boolean True.
+    triggers = workflow[True]
+    assert triggers["pull_request"] is None
+    assert "push" not in triggers and "workflow_dispatch" not in triggers
+
+    build = workflow["jobs"]["build"]
+    assert build["uses"] == (
+        "obs-plugins-snaps/workflows/.github/workflows/build-snap.yml@main"
+    )
+    assert build["with"]["plugin_name"] == "source-record"
+
+
+def test_release_workflow_releases_to_edge(copie):
+    """release.yaml packs and releases to latest/edge on pushes to main."""
+    release_yaml = (
+        make_project(copie).project_dir / ".github" / "workflows" / "release.yaml"
+    )
+    workflow = yaml.safe_load(release_yaml.read_text())
+    triggers = workflow[True]
+    assert triggers["push"] == {"branches": ["main"]}
+    assert "pull_request" not in triggers
+
+    release = workflow["jobs"]["release"]
+    assert release["uses"] == (
+        "obs-plugins-snaps/workflows/.github/workflows/release-to-edge.yml@main"
+    )
+    assert release["with"]["plugin_name"] == "source-record"
+    assert release["secrets"] == "inherit"
+
+
+def test_promote_workflow_is_dispatchable(copie):
+    """promote.yaml promotes a revision from the Actions tab."""
+    promote_yaml = (
+        make_project(copie).project_dir / ".github" / "workflows" / "promote.yaml"
+    )
+    workflow = yaml.safe_load(promote_yaml.read_text())
+    triggers = workflow[True]
+    assert "push" not in triggers and "pull_request" not in triggers
+    dispatch = triggers["workflow_dispatch"]
+    assert dispatch["inputs"]["revision"]["default"] == "latest"
+    assert dispatch["inputs"]["channel"]["required"] is True
+    assert dispatch["inputs"]["channel"]["type"] == "choice"
+    assert dispatch["inputs"]["channel"]["options"] == [
+        "beta",
+        "candidate",
+        "stable",
+    ]
+
+    promote = workflow["jobs"]["promote"]
+    assert promote["uses"] == (
+        "obs-plugins-snaps/workflows/.github/workflows/promote-dispatch.yml@main"
+    )
+    assert promote["with"]["plugin_name"] == "source-record"
+    assert promote["with"]["revision"] == "${{ github.event.inputs.revision }}"
+    assert promote["with"]["channel"] == "${{ github.event.inputs.channel }}"
+    assert promote["secrets"] == "inherit"
 
 
 def test_j2_suffix_not_leaking(copie):
