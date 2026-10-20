@@ -1,0 +1,12 @@
+name: Release to Snap Store
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    uses: obs-plugins-snaps/workflows/.github/workflows/release-to-edge.yml@main
+    with:
+      plugin_name: "{{ plugin_name }}"
+    secrets: inherit

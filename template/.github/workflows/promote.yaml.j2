@@ -1,0 +1,26 @@
+name: Promote snap
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "Revision (number or 'latest')"
+        required: false
+        default: latest
+      channel:
+        description: "Target risk level"
+        required: true
+        type: choice
+        options:
+          - beta
+          - candidate
+          - stable
+
+jobs:
+  promote:
+    uses: obs-plugins-snaps/workflows/.github/workflows/promote-dispatch.yml@main
+    with:
+      plugin_name: "{{ plugin_name }}"
+      revision: {% raw %}"${{ github.event.inputs.revision }}"{% endraw %}
+      channel: {% raw %}"${{ github.event.inputs.channel }}"{% endraw %}
+    secrets: inherit
