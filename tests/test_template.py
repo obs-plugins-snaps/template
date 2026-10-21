@@ -146,15 +146,33 @@ def test_multiline_description(copie):
     result = make_project(copie, description=description)
     rendered = yaml.safe_load(snapcraft_yaml(result))["description"]
     # Paragraphs are wrapped independently (76 columns + 2 of indent), but
-    # the paragraph breaks themselves are preserved.
-    expected = (
+    # the paragraph breaks themselves are preserved, and the shared
+    # installation fragment is appended after them.
+    expected_prefix = (
         "First paragraph with a reasonably long line of text to force the "
         "wordwrap\nfilter to break it at some point.\n\n"
         "Second paragraph.\n\n"
         "Third paragraph with another reasonably long line of text that the "
         "wordwrap\nfilter will also break somewhere."
     )
-    assert rendered.rstrip("\n") == expected
+    assert rendered.startswith(expected_prefix)
+
+
+def test_description_includes_installation(copie):
+    """The store description carries the shared installation fragment."""
+    description = yaml.safe_load(snapcraft_yaml(make_project(copie)))["description"]
+    assert "Installation" in description
+    assert "sudo snap install source-record-obs-studio" in description
+    assert (
+        "sudo snap connect obs-studio:obs-plugins"
+        " source-record-obs-studio:obs-plugins" in description
+    )
+
+
+def test_description_fits_store_limit(copie):
+    """The rendered description stays within the Snap Store's 4096 chars."""
+    description = yaml.safe_load(snapcraft_yaml(make_project(copie)))["description"]
+    assert len(description) <= 4096
 
 
 def test_grade_defaults_to_devel(copie):
@@ -190,6 +208,10 @@ def test_readme_mentions_snap_name(copie):
         "sudo snap connect obs-studio:obs-plugins source-record-obs-studio:obs-plugins"
         in readme
     )
+    # The intro links to the upstream repository without the .git suffix.
+    assert "https://github.com/exeldro/obs-source-record.git" not in readme
+    assert "[source-record](https://github.com/exeldro/obs-source-record)" in readme
+    assert "## Development" in readme
 
 
 def test_ci_workflow_calls_central_workflows(copie):
