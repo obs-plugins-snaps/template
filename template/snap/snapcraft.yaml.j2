@@ -7,6 +7,19 @@ description: |
 {%- for paragraph in description.split('\n\n') %}
 {{ paragraph | wordwrap(76) | indent(2, true) }}
 {% endfor %}
+  **Installation**
+
+  Install the snap:
+
+      sudo snap install {{ snap_name }}
+
+  Then connect it to the OBS Studio snap:
+
+      sudo snap connect obs-studio:obs-plugins {{ snap_name }}:obs-plugins
+
+  Once connected, the plugin will be available in OBS Studio after restarting
+  it.
+
 website: {{ website }}
 source-code: {{ package_url }}
 contact: {{ package_url }}
