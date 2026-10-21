@@ -1,0 +1,93 @@
+# Tags every commit to main with the next patch version, so that projects
+# generated from this template can always `copier update` to the latest
+# merged state. Minor and major bumps are made manually by pushing a tag;
+# if the head commit is already tagged, the automatic bump is a no-op and
+# the next one continues from the manual tag.
+
+name: Tag commit
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  # Serialize tag bumps so that two pushes to main never race to push the
+  # next version.
+  group: tag-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: 🏷️ Tag with the next patch version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: 🏷️ Create and push the next patch tag
+        env:
+          initial_version: v0.0.1
+        run: |
+          import os
+          import re
+          import subprocess
+          import sys
+
+          initial_version = os.environ["initial_version"]
+          semver = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+
+          def git(*args):
+              """Run git, returning stdout, or failing loudly."""
+              result = subprocess.run(["git", *args], capture_output=True, text=True)
+              if result.returncode != 0:
+                  sys.exit(f"git {' '.join(args)} failed:\n{result.stderr.strip()}")
+              return result.stdout.strip()
+
+          def fail(message):
+              sys.exit(f"::error::{message}")
+
+          git("fetch", "--tags", "--force")
+
+          # A manually pushed tag wins over the automatic bump: if the head
+          # commit is already tagged (e.g. a manual minor or major bump),
+          # there is nothing to do.
+          if git("tag", "--list", "v*", "--points-at", "HEAD"):
+              print("HEAD is already tagged; skipping the automatic bump.")
+              sys.exit(0)
+
+          tags = git("tag", "--list", "v*").splitlines()
+          if not tags:
+              print(f"No existing tags; starting at {initial_version}.")
+              next_version = initial_version
+          elif any(not semver.match(tag) for tag in tags):
+              bad = [tag for tag in tags if not semver.match(tag)]
+              fail(
+                  f"Tags {', '.join(bad)} are not vMAJOR.MINOR.PATCH versions; "
+                  "cannot bump automatically."
+              )
+          else:
+              # Strict semver comparison, so bumps carry over 9 -> 10.
+              major, minor, patch = max(
+                  tuple(int(group) for group in semver.match(tag).groups())
+                  for tag in tags
+              )
+              next_version = f"v{major}.{minor}.{patch + 1}"
+
+          tag_exists = (
+              subprocess.run(
+                  ["git", "rev-parse", "-q", "--verify", f"refs/tags/{next_version}"],
+                  capture_output=True,
+              ).returncode
+              == 0
+          )
+          if tag_exists:
+              fail(f"Tag {next_version} already exists; refusing to overwrite.")
+
+          print(f"Tagging HEAD as {next_version}.")
+          git("tag", next_version)
+          git("push", "origin", next_version)
+        shell: python
