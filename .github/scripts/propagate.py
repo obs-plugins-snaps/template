@@ -157,53 +157,65 @@ def repo_diffstat(work: Path) -> str:
 def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Result:
     branch = f"template-update-{tag}"
 
-    if branch_exists(repo, branch, token) or pr_exists(repo, branch, token):
-        return Result(plugin, repo, "skipped", f"{branch} already exists")
+    if pr_exists(repo, branch, token):
+        return Result(plugin, repo, "skipped", f"{branch} PR already exists")
 
     commit = recorded_commit(repo, token)
     if commit == tag:
         return Result(plugin, repo, "skipped", f"already on {tag}")
 
+    # A previous run may have pushed the branch but failed to open the PR
+    # (e.g. missing pull_requests permission); reuse the branch as-is.
+    branch_ready = branch_exists(repo, branch, token)
+
+    diffstat = ""
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / "repo"
-        run(
-            "git",
-            "clone",
-            "--depth",
-            "50",
-            f"https://x-access-token:{token}@github.com/{repo}",
-            str(work),
-        )
-        # The machine user identity: its registered SSH signing key
-        # (repo secret CI_SSH_SIGNING_KEY) matches this noreply email, so
-        # commits render as Verified.
-        run("git", "config", "user.name", "obs-plugins-snaps-bot", cwd=work)
-        run(
-            "git",
-            "config",
-            "user.email",
-            "346340553+obs-plugins-snaps-bot@users.noreply.github.com",
-            cwd=work,
-        )
+        clone_args = ["git", "clone", "--depth", "50"]
+        if branch_ready:
+            # --depth implies --single-branch; we need origin/main for the
+            # diffstat below.
+            clone_args += ["--branch", branch, "--no-single-branch"]
+        clone_args += [f"https://x-access-token:{token}@github.com/{repo}", str(work)]
+        run(*clone_args)
 
-        copier = ["uvx", "--from", "copier", "copier"]
-        run(*copier, "update", "--defaults", "--vcs-ref", tag, cwd=work)
+        if branch_ready:
+            diffstat = (
+                "```diff\n"
+                + run("git", "diff", "--stat", "origin/main", "HEAD", cwd=work)
+                + "\n```"
+            )
+        else:
+            # The machine user identity: its registered SSH signing key
+            # (repo secret CI_SSH_SIGNING_KEY) matches this noreply email, so
+            # commits render as Verified.
+            run("git", "config", "user.name", "obs-plugins-snaps-bot", cwd=work)
+            run(
+                "git",
+                "config",
+                "user.email",
+                "346340553+obs-plugins-snaps-bot@users.noreply.github.com",
+                cwd=work,
+            )
 
-        if not run("git", "status", "--porcelain", cwd=work):
-            return Result(plugin, repo, "skipped", "no changes rendered")
+            copier = ["uvx", "--from", "copier", "copier"]
+            run(*copier, "update", "--defaults", "--vcs-ref", tag, cwd=work)
 
-        diffstat = repo_diffstat(work)
+            if not run("git", "status", "--porcelain", cwd=work):
+                return Result(plugin, repo, "skipped", "no changes rendered")
 
-        run("git", "checkout", "-b", branch, cwd=work)
-        run("git", "add", "-A", cwd=work)
-        run(
-            "git",
-            "commit",
-            "-m",
-            f"Update template to {tag}",
-            cwd=work,
-        )
-        run("git", "push", "-u", "origin", branch, cwd=work)
+            diffstat = repo_diffstat(work)
+
+            run("git", "checkout", "-b", branch, cwd=work)
+            run("git", "add", "-A", cwd=work)
+            run(
+                "git",
+                "commit",
+                "-m",
+                f"Update template to {tag}",
+                cwd=work,
+            )
+            run("git", "push", "-u", "origin", branch, cwd=work)
 
     old = commit or "unknown"
     compare = f"https://github.com/{owner}/template/compare/{old}...{tag}"
