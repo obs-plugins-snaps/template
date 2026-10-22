@@ -88,3 +88,4 @@ snapcraft pack
 sudo snap install ./<snap-name>_<version>_amd64.snap --dangerous
 sudo snap connect obs-studio:obs-plugins <snap-name>:obs-plugins
 ```
+<!-- supersede test -->
