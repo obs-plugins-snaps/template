@@ -55,7 +55,7 @@ parts:
     # only. Afterwards this line is hand-owned - bump it by editing here
     # directly - and copier updates keep hand edits as long as the
     # template never modifies this line.
-    source-tag: '{{ source_tag }}'
+    source-tag: '{{ source_tag or "TODO-SET-ME" }}'
     # The snap version is adopted from the tagged source tree (see the
     # top-level adopt-info), so the packaged bits and the store
     # metadata always agree.
