@@ -26,6 +26,7 @@ name: Template CI
 on:
   pull_request:
     paths:
+      - ".github/**"
       - "copier.yaml"
       - "template/**"
       - "tests/**"
