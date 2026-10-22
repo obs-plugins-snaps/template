@@ -140,38 +140,38 @@ def test_qt_packages_always_included(copie):
 
 
 def test_packaging_metadata_points_at_packaging_repo(copie):
-    """source-code, contact and issues point at the packaging repo; website
-    points at the upstream plugin (without the .git suffix)."""
+    """source-code points at the packaging repo; contact/issues at its issue
+    tracker (the store's 'Report a bug' link is the issues URL verbatim);
+    website points at the upstream plugin (without the .git suffix)."""
     data = yaml.safe_load(snapcraft_yaml(make_project(copie)))
     packaging = "https://github.com/obs-plugins-snaps/source-record-obs-studio-snap"
     assert data["website"] == "https://github.com/exeldro/obs-source-record"
     assert data["source-code"] == packaging
-    assert data["contact"] == packaging
-    assert data["issues"] == packaging
+    assert data["contact"] == f"{packaging}/issues"
+    assert data["issues"] == f"{packaging}/issues"
 
 
 def test_multiline_description(copie):
-    """Multi-paragraph descriptions survive wrapping and indentation."""
+    """Multi-paragraph descriptions keep their breaks, unwrapped."""
     description = (
-        "First paragraph with a reasonably long line of text to force the "
-        "wordwrap filter to break it at some point.\n\n"
+        "First paragraph with a reasonably long line of text that would "
+        "definitely have been broken by the old wordwrap filter.\n\n"
         "Second paragraph.\n\n"
-        "Third paragraph with another reasonably long line of text that the "
-        "wordwrap filter will also break somewhere."
+        "Third paragraph with another long line that stays on one line too."
     )
     result = make_project(copie, description=description)
     rendered = yaml.safe_load(snapcraft_yaml(result))["description"]
-    # Paragraphs are wrapped independently (76 columns + 2 of indent), but
-    # the paragraph breaks themselves are preserved, and the shared
+    # Paragraphs are rendered unwrapped (the store soft-wraps for display),
+    # but the paragraph breaks themselves are preserved, and the shared
     # installation fragment is appended after them.
-    expected_prefix = (
-        "First paragraph with a reasonably long line of text to force the "
-        "wordwrap\nfilter to break it at some point.\n\n"
+    assert rendered.startswith(
+        "First paragraph with a reasonably long line of text that would "
+        "definitely have been broken by the old wordwrap filter.\n\n"
         "Second paragraph.\n\n"
-        "Third paragraph with another reasonably long line of text that the "
-        "wordwrap\nfilter will also break somewhere."
+        "Third paragraph with another long line that stays on one line too."
     )
-    assert rendered.startswith(expected_prefix)
+    # No hard mid-sentence wrap: each source line survives intact.
+    assert "definitely have been broken by the old wordwrap filter." in rendered
 
 
 def test_description_includes_installation(copie):
@@ -297,6 +297,26 @@ def test_j2_suffix_not_leaking(copie):
     """No .j2 or .jinja suffixes remain in the generated project."""
     assert not list(make_project(copie).project_dir.rglob("*.j2"))
     assert not list(make_project(copie).project_dir.rglob("*.jinja"))
+
+
+def test_icon_key_and_asset_shipped(copie):
+    """The rendered yaml declares the icon and the template ships the PNG."""
+    result = make_project(copie)
+    data = yaml.safe_load(snapcraft_yaml(result))
+    assert data["icon"] == "snap/gui/icon.png"
+    icon = result.project_dir / "snap" / "gui" / "icon.png"
+    assert icon.is_file()
+    assert icon.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"  # PNG magic
+
+
+def test_readme_carries_store_badge(copie):
+    """The README links the store badge for the snap."""
+    readme = (make_project(copie).project_dir / "README.md").read_text()
+    assert (
+        "[![source-record-obs-studio]"
+        "(https://snapcraft.io/source-record-obs-studio/badge.svg)]"
+        "(https://snapcraft.io/source-record-obs-studio)" in readme
+    )
 
 
 def test_bug_issue_template_rendered(copie):

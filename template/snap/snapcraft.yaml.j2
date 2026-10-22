@@ -5,7 +5,7 @@ title: {{ title }}
 summary: "{{ summary }}"
 description: |
 {%- for paragraph in description.split('\n\n') %}
-{{ paragraph | wordwrap(76) | indent(2, true) }}
+{{ paragraph | indent(2, true) }}
 {% endfor %}
   **Installation**
 
@@ -22,10 +22,12 @@ description: |
 
 website: {{ website }}
 source-code: {{ package_url }}
-contact: {{ package_url }}
-issues: {{ package_url }}
+contact: {{ package_url }}/issues
+issues: {{ package_url }}/issues
 {% if license %}license: {{ license }}
 {% endif %}
+
+icon: snap/gui/icon.png
 
 grade: devel
 confinement: strict
