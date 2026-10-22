@@ -50,8 +50,10 @@ summary:
 
 source_tag:
   type: str
-  help: Upstream release tag to package (pinned via source-tag; the snap
-    version is computed from the tagged tree at build time)
+  help: Upstream release tag to package (seeds the source-tag pin at
+    bootstrap; afterwards bump the pin by editing snap/snapcraft.yaml
+    directly - the snap version is computed from the tagged tree at
+    build time)
   default: "0.1.0"
   validator: >-
     {% if not (source_tag | regex_search('^[a-zA-Z0-9](?:[a-zA-Z0-9:.+~-]{0,30}[a-zA-Z0-9+~])?$')) %}
