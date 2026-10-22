@@ -134,14 +134,24 @@ def template_changes(owner: str, old: str, tag: str, token: str) -> tuple[str, s
 
 def repo_diffstat(work: Path) -> str:
     """Render the applied diff (what this repository actually got)."""
-    stat = run("git", "diff", "--stat", "HEAD", cwd=work)
-    untracked = run("git", "ls-files", "--others", "--exclude-standard", cwd=work)
-    lines = ["```", stat or "(no tracked-file changes)"]
-    if untracked:
-        lines.append("New files:")
-        lines += [f"  {path}" for path in untracked.splitlines()]
-    lines.append("```")
-    return "\n".join(lines)
+    lines = []
+    try:
+        stat = run("git", "diff", "--stat", "HEAD", cwd=work)
+    except RuntimeError:
+        # Defensive: conflicted merges leave the index in states some git
+        # plumbing refuses; fall back to the porcelain status below.
+        stat = ""
+        lines.append("**Conflicts detected** - resolve the marked files in this PR.")
+    if stat:
+        lines += ["```diff", stat, "```"]
+    status = run("git", "status", "--porcelain", cwd=work)
+    entries = [
+        line[2:].lstrip() for line in status.splitlines() if line and line[2:].strip()
+    ]
+    if entries:
+        lines.append("Changed files:")
+        lines += [f"- `{path}`" for path in entries]
+    return "\n".join(lines) if lines else "(no changes)"
 
 
 def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Result:
@@ -167,7 +177,7 @@ def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Resu
         # The machine user identity: its registered SSH signing key
         # (repo secret CI_SSH_SIGNING_KEY) matches this noreply email, so
         # commits render as Verified.
-        run("git", "config", "user.name", "obs-plugins-snaps-bot")
+        run("git", "config", "user.name", "obs-plugins-snaps-bot", cwd=work)
         run(
             "git",
             "config",
