@@ -52,13 +52,13 @@ parts:
     source: {{ source_url }}
     source-type: git
 {%- if false %}
-    # TEMPLATE-FROZEN: the source_tag answer seeds this pin at bootstrap
-    # only; afterwards the line is hand-owned (bump it by editing the
+    # TEMPLATE-FROZEN: the initial_source_tag answer seeds this pin at
+    # bootstrap only; afterwards the line is hand-owned (bump it by editing the
     # rendered file directly). NEVER modify this line in template changes:
     # hand edits survive copier updates via 3-way merge only while this
     # render stays byte-stable.
 {%- endif %}
-    source-tag: '{{ source_tag }}'
+    source-tag: '{{ initial_source_tag }}'
 {%- if false %}
     # The snap version is adopted from the tagged source tree, so the
     # packaged bits and the store metadata always agree.
