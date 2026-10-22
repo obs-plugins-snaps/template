@@ -73,6 +73,11 @@ license:
     empty to omit the field
   default: ""
 
+_secret_questions:
+  # The pin is hand-owned after bootstrap (TEMPLATE-FROZEN); recording it
+  # would only describe the bootstrap moment, not the current state.
+  - source_tag
+
 # Computed values, not asked and not recorded in the answers file.
 snap_name:
   when: false
