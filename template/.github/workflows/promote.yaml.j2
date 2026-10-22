@@ -18,7 +18,7 @@ on:
 
 jobs:
   promote:
-    uses: obs-plugins-snaps/workflows/.github/workflows/promote-dispatch.yml@main
+    uses: obs-plugins-snaps/workflows/.github/workflows/promote.yml@main
     with:
       plugin_name: "{{ plugin_name }}"
       revision: {% raw %}"${{ github.event.inputs.revision }}"{% endraw %}
