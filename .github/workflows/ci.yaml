@@ -1,0 +1,215 @@
+# Template CI: one workflow, one run per event, so the whole pipeline is
+# visible in a single place.
+#
+# - pull_request: run the tests (lint + pytest-copie) only.
+# - push to main: test -> tag -> propagate, chained with `needs`, so a
+#   red test blocks the tag and nothing broken is propagated to the
+#   plugin repositories.
+# - workflow_dispatch: propagate only (optionally a specific tag), for
+#   manual re-runs.
+#
+# The tag job tags every commit to main with the next patch version, so
+# that projects generated from this template can always `copier update`
+# to the latest merged state. Minor and major bumps are made manually by
+# pushing a tag; if the head commit is already tagged, the automatic
+# bump is a no-op and propagation picks up the latest tag (the manual
+# one), just like it does after an automatic bump.
+#
+# The list of managed plugins is read from meta at runtime by the
+# propagate job: every plugins/<plugin_name>-obs-studio.json record in
+# https://github.com/obs-plugins-snaps/meta maps to the repository
+# <plugin_name>-obs-studio-snap. meta is the single source of truth;
+# nothing here edits it.
+
+name: Template CI
+
+on:
+  pull_request:
+    paths:
+      - "copier.yaml"
+      - "template/**"
+      - "tests/**"
+      - "pyproject.toml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Template tag to propagate (defaults to the latest v* tag)
+        required: false
+
+permissions: {}
+
+jobs:
+  test:
+    name: Test template
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Run lint
+        run: uv run ruff check . && uv run ruff format --check .
+
+      - name: Run tests
+        run: uv run pytest tests/ -v
+
+  tag:
+    name: 🏷️ Tag with the next patch version
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      # Serialize tag bumps so that two pushes to main never race to
+      # push the next version.
+      group: tag-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: 🏷️ Create and push the next patch tag
+        env:
+          initial_version: v0.0.1
+        run: |
+          import os
+          import re
+          import subprocess
+          import sys
+
+          initial_version = os.environ["initial_version"]
+          semver = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+
+          def git(*args):
+              """Run git, returning stdout, or failing loudly."""
+              result = subprocess.run(["git", *args], capture_output=True, text=True)
+              if result.returncode != 0:
+                  sys.exit(f"git {' '.join(args)} failed:\n{result.stderr.strip()}")
+              return result.stdout.strip()
+
+          def fail(message):
+              sys.exit(f"::error::{message}")
+
+          git("fetch", "--tags", "--force")
+
+          # A manually pushed tag wins over the automatic bump: if the head
+          # commit is already tagged (e.g. a manual minor or major bump),
+          # there is nothing to do.
+          if git("tag", "--list", "v*", "--points-at", "HEAD"):
+              print("HEAD is already tagged; skipping the automatic bump.")
+              sys.exit(0)
+
+          tags = git("tag", "--list", "v*").splitlines()
+          if not tags:
+              print(f"No existing tags; starting at {initial_version}.")
+              next_version = initial_version
+          elif any(not semver.match(tag) for tag in tags):
+              bad = [tag for tag in tags if not semver.match(tag)]
+              fail(
+                  f"Tags {', '.join(bad)} are not vMAJOR.MINOR.PATCH versions; "
+                  "cannot bump automatically."
+              )
+          else:
+              # Strict semver comparison, so bumps carry over 9 -> 10.
+              major, minor, patch = max(
+                  tuple(int(group) for group in semver.match(tag).groups())
+                  for tag in tags
+              )
+              next_version = f"v{major}.{minor}.{patch + 1}"
+
+          tag_exists = (
+              subprocess.run(
+                  ["git", "rev-parse", "-q", "--verify", f"refs/tags/{next_version}"],
+                  capture_output=True,
+              ).returncode
+              == 0
+          )
+          if tag_exists:
+              fail(f"Tag {next_version} already exists; refusing to overwrite.")
+
+          print(f"Tagging HEAD as {next_version}.")
+          git("tag", next_version)
+          git("push", "origin", next_version)
+        shell: python
+
+  propagate:
+    name: Open update PRs on plugin repositories
+    needs: tag
+    if: >-
+      always() &&
+      (needs.tag.result == 'success' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: propagate-template
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # copier update needs the history around the recorded _commit.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Configure git commit signing
+        env:
+          CI_SSH_SIGNING_KEY: ${{ secrets.CI_SSH_SIGNING_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$CI_SSH_SIGNING_KEY" > ~/.ssh/signing-key
+          chmod 600 ~/.ssh/signing-key
+          git config --global gpg.format ssh
+          git config --global user.signingkey ~/.ssh/signing-key
+          git config --global commit.gpgsign true
+
+      - name: Generate installation token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Resolve the latest template tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            echo "version=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/tags" \
+            --jq '[.[].name | select(startswith("v"))][0]')
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: List plugin records in meta
+        id: plugins
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          names=$(gh api "repos/$GITHUB_REPOSITORY_OWNER/meta/contents/plugins" \
+            --jq '[.[].name | select(endswith("-obs-studio.json")) |
+                   capture("(?<p>.+)-obs-studio\\.json").p]')
+          echo "plugins=$names" >> "$GITHUB_OUTPUT"
+
+      - name: Open update PRs
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TEMPLATE_TAG: ${{ steps.tag.outputs.version }}
+          PLUGINS: ${{ steps.plugins.outputs.plugins }}
+        run: |
+          uvx --from copier copier --version
+          uv run .github/scripts/propagate.py \
+            --tag "$TEMPLATE_TAG" \
+            --plugins "$PLUGINS" \
+            --summary "$GITHUB_STEP_SUMMARY"
