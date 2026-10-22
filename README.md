@@ -34,6 +34,7 @@ copier copy \
 | `source_url`  | Git URL of the upstream plugin repository                          |
 | `summary`     | One-line summary (maximum 78 characters)                           |
 | `version`     | Version to package, optional (defaults to `0.1.0`)                 |
+| `source_tag`  | Upstream git tag to build from, optional (defaults to `version`)   |
 | `description` | Longer description, optional (defaults to the summary)             |
 | `license`     | SPDX license identifier, optional (omitted when empty)             |
 

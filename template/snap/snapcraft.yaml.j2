@@ -51,6 +51,7 @@ parts:
   {{ plugin_name }}:
     source: {{ source_url }}
     source-type: git
+    source-tag: '{{ source_tag }}'
     plugin: cmake
     build-environment:
       - CMAKE_PREFIX_PATH: "/snap/obs-studio/current/usr/"
