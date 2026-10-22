@@ -51,14 +51,18 @@ parts:
   {{ plugin_name }}:
     source: {{ source_url }}
     source-type: git
+{%- if false %}
     # TEMPLATE-FROZEN: the source_tag answer seeds this pin at bootstrap
-    # only. Afterwards this line is hand-owned - bump it by editing here
-    # directly - and copier updates keep hand edits as long as the
-    # template never modifies this line.
+    # only; afterwards the line is hand-owned (bump it by editing the
+    # rendered file directly). NEVER modify this line in template changes:
+    # hand edits survive copier updates via 3-way merge only while this
+    # render stays byte-stable.
+{%- endif %}
     source-tag: '{{ source_tag }}'
-    # The snap version is adopted from the tagged source tree (see the
-    # top-level adopt-info), so the packaged bits and the store
-    # metadata always agree.
+{%- if false %}
+    # The snap version is adopted from the tagged source tree, so the
+    # packaged bits and the store metadata always agree.
+{%- endif %}
     override-pull: |
       craftctl default
       craftctl set version="$(git describe --tags | sed 's/^v\([0-9]\)/\1/')"
