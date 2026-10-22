@@ -236,7 +236,7 @@ def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Resu
         "for manual resolution."
     )
 
-    api(
+    response = api(
         f"https://api.github.com/repos/{repo}/pulls",
         token,
         method="POST",
@@ -247,7 +247,8 @@ def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Resu
             "body": "\n\n".join(body_parts) + "\n",
         },
     )
-    return Result(plugin, repo, "updated", f"PR opened ({old} -> {tag})")
+    pr_url = response.get("html_url", "(url unavailable)")
+    return Result(plugin, repo, "updated", f"[{pr_url}]({pr_url}) ({old} -> {tag})")
 
 
 def main() -> None:
