@@ -50,9 +50,8 @@ def test_answers_file_content(copie):
     # Computed values are not recorded.
     assert "snap_name" not in recorded
     assert "title" not in recorded
-    # The version changes on every release, so it is a secret question:
-    # prompted and rendered, but never persisted to the answers file.
-    assert "version" not in recorded
+    # The bootstrap pin is recorded (it seeds the source-tag pin).
+    assert recorded["initial_source_tag"] == "0.1.0"
 
 
 def test_snap_name_appends_suffix(copie):
@@ -67,15 +66,16 @@ def test_title_is_derived(copie):
     assert "title: Advanced Masks (OBS plugin)" in snapcraft_yaml(result)
 
 
-def test_version_defaults_to_placeholder(copie):
-    """The version question feeds the source-tag pin, not a static version."""
+def test_initial_source_tag_defaults_to_placeholder(copie):
+    """The initial_source_tag question feeds the source-tag pin."""
     assert "source-tag: '0.1.0'" in snapcraft_yaml(make_project(copie))
 
 
-def test_source_tag_is_derived_from_version(copie):
-    """The source tag is not a question: it is derived from the version."""
-    assert "source-tag: '0.1.0'" in snapcraft_yaml(make_project(copie))
-    assert "source-tag: '0.4.8'" in snapcraft_yaml(make_project(copie, version="0.4.8"))
+def test_initial_source_tag_is_recorded_and_rendered(copie):
+    """The bootstrap pin is recorded and rendered from the answer."""
+    result = make_project(copie, initial_source_tag="0.4.8")
+    assert "source-tag: '0.4.8'" in snapcraft_yaml(result)
+    assert answers_file(result)["initial_source_tag"] == "0.4.8"
 
 
 def test_adopt_info_replaces_static_version(copie):
@@ -86,14 +86,16 @@ def test_adopt_info_replaces_static_version(copie):
     assert 'craftctl set version="$(git describe' in content
 
 
-def test_version_is_used_verbatim(copie):
-    """An explicit version is rendered as-is, without any sanitization."""
-    assert "source-tag: '0.4.8'" in snapcraft_yaml(make_project(copie, version="0.4.8"))
+def test_initial_source_tag_is_used_verbatim(copie):
+    """An explicit bootstrap pin is rendered as-is, without any sanitization."""
+    result = make_project(copie, initial_source_tag="0.4.8")
+    assert "source-tag: '0.4.8'" in snapcraft_yaml(result)
 
 
-def test_version_is_not_recorded_in_answers(copie):
-    """The version is a secret question: not persisted for future updates."""
-    assert "version" not in answers_file(make_project(copie, version="0.4.8"))
+def test_initial_source_tag_is_recorded_in_answers(copie):
+    """The bootstrap pin is persisted for future updates."""
+    result = make_project(copie, initial_source_tag="0.4.8")
+    assert answers_file(result)["initial_source_tag"] == "0.4.8"
 
 
 def test_license_defaults_to_omitted(copie):
