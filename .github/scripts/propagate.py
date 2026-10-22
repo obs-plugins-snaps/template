@@ -113,22 +113,28 @@ def template_changes(owner: str, old: str, tag: str, token: str) -> tuple[str, s
     except RuntimeError:
         return "", ""
 
+    # Commit titles are rendered literally (in backticks): the body is
+    # shown in the plugin repositories, where a bare '#N' would auto-link
+    # to that repository's issues, not the template's.
     commits = []
     for c in comparison.get("commits", []):
         sha = c["sha"][:7]
         title = c["commit"]["message"].splitlines()[0]
-        commits.append(f"- [`{sha}`]({c['html_url']}) {title}")
-    files = [
+        commits.append(f"- [`{sha}`]({c['html_url']}) `{title}`")
+    rendered = [
         f"- `{f['filename']}` ({f['status']})"
         for f in comparison.get("files", [])
         if f["filename"].startswith("template/")
     ]
 
     sections = []
-    if commits:
+    if rendered:
         sections.append("Commits:\n" + "\n".join(commits))
-    if files:
-        sections.append("Files in the template:\n" + "\n".join(files))
+        sections.append("Files in the template:\n" + "\n".join(rendered))
+    else:
+        # Development-only changes (tests, CI, docs at the template
+        # repository root) never reach generated projects.
+        sections.append("_No changes to template content in this release._")
     return "\n\n".join(sections), comparison["html_url"]
 
 
