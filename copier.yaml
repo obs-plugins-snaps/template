@@ -48,22 +48,18 @@ summary:
     {% if not summary %}A summary is required{% endif %}
     {% if summary | length > 78 %}Maximum 78 characters{% endif %}
 
-version:
+source_tag:
   type: str
-  help: Upstream release tag to package (becomes the snap version; maximum 32
-    characters)
+  help: Upstream release tag to package (seeds the source-tag pin at
+    bootstrap; afterwards bump the pin by editing snap/snapcraft.yaml
+    directly - the snap version is computed from the tagged tree at
+    build time)
   default: "0.1.0"
   validator: >-
-    {% if not (version | regex_search('^[a-zA-Z0-9](?:[a-zA-Z0-9:.+~-]{0,30}[a-zA-Z0-9+~])?$')) %}
+    {% if not (source_tag | regex_search('^[a-zA-Z0-9](?:[a-zA-Z0-9:.+~-]{0,30}[a-zA-Z0-9+~])?$')) %}
     Snap versions allow up to 32 characters: letters, digits, and : . + ~ -
     ; must start with a letter or digit, and end with a letter, digit, + or ~
     {% endif %}
-
-_secret_questions:
-  # The packaged version changes on every release, so it must not be
-  # remembered across copier update runs (it would default to a stale
-  # value); it lives in snap/snapcraft.yaml only.
-  - version
 
 description:
   type: str

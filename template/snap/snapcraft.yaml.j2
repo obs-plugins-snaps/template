@@ -51,9 +51,11 @@ parts:
   {{ plugin_name }}:
     source: {{ source_url }}
     source-type: git
-    # Pin to the release matching the version above; edit by hand if the
-    # upstream tag name differs (e.g. a 'v' prefix or a beta tag).
-    source-tag: '{{ version }}'
+    # TEMPLATE-FROZEN: the source_tag answer seeds this pin at bootstrap
+    # only. Afterwards this line is hand-owned - bump it by editing here
+    # directly - and copier updates keep hand edits as long as the
+    # template never modifies this line.
+    source-tag: '{{ source_tag }}'
     # The snap version is adopted from the tagged source tree (see the
     # top-level adopt-info), so the packaged bits and the store
     # metadata always agree.
