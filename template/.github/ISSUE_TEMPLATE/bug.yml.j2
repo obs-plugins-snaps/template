@@ -1,0 +1,62 @@
+name: Bug report
+description: Something is wrong when using this plugin via the snap
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: native-install-check
+    attributes:
+      label: Before submitting
+      description: >-
+        "Natively" means without the snap: copying the plugin into your OBS
+        Studio user configuration (~/.config/obs-studio/plugins) or using a
+        distribution package. This check tells snap problems and plugin
+        bugs apart, so please test it before reporting here.
+      options:
+        - label: I have checked that this error does not happen by installing the plugin natively
+          required: true
+  - type: input
+    id: affected-snap
+    attributes:
+      label: Affected snap
+      description: Name of the snap you installed
+      placeholder: e.g. {{ snap_name }}
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Snap revision and OBS Studio version
+      placeholder: e.g. snap rev 12, OBS Studio 31.1
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected to happen instead
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        ### Is this a plugin bug?
+
+        If the misbehavior is in the plugin itself once loaded in OBS
+        Studio (wrong behavior, missing features, crashes caused by the
+        plugin logic), please report it to the plugin developers upstream
+        instead — check the `website` or `source-code` links on the snap
+        page. This tracker is for **snap-related** problems: installation,
+        connection to the OBS Studio snap, files in the wrong places, or
+        anything that only happens with the snap and not with a native
+        installation of the plugin.

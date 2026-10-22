@@ -280,3 +280,16 @@ def test_j2_suffix_not_leaking(copie):
     """No .j2 or .jinja suffixes remain in the generated project."""
     assert not list(make_project(copie).project_dir.rglob("*.j2"))
     assert not list(make_project(copie).project_dir.rglob("*.jinja"))
+
+
+def test_bug_issue_template_rendered(copie):
+    """The bug report issue template is rendered without jinja artifacts."""
+    path = make_project(copie).project_dir / ".github" / "ISSUE_TEMPLATE" / "bug.yml"
+    content = path.read_text()
+    assert "Affected snap" in content
+    native = (
+        "I have checked that this error does not happen "
+        "by installing the plugin natively"
+    )
+    assert native in content
+    assert "{{" not in content and "{%" not in content
