@@ -49,7 +49,9 @@ def api(url: str, token: str, method: str = "GET", body: dict | None = None) -> 
     request = Request(url, headers=headers, data=data, method=method)
     try:
         with urlopen(request) as response:
-            return json.load(response)
+            payload = response.read()
+            # 204 No Content (e.g. successful ref deletion) has no body.
+            return json.loads(payload) if payload else {}
     except Exception as exc:  # noqa: BLE001 - reported per plugin below
         message = getattr(exc, "read", lambda: b"")()
         raise RuntimeError(f"{method} {url} failed: {exc} {message}") from exc
@@ -95,6 +97,45 @@ def pr_exists(repo: str, head: str, token: str) -> bool:
     owner = repo.split("/", maxsplit=1)[0]
     url = f"https://api.github.com/repos/{repo}/pulls?head={owner}:{head}&state=open"
     return bool(api(url, token))
+
+
+def supersede_updates(repo: str, branch: str, tag: str, token: str) -> list[str]:
+    """Close stale template-update PRs and delete their branches.
+
+    Keeps at most one live template-update PR per repository: after the
+    new PR is opened, any older ones are marked superseded and removed.
+    """
+    closed = []
+    for pr in api(
+        f"https://api.github.com/repos/{repo}/pulls?state=open&per_page=100",
+        token,
+    ):
+        head = pr.get("head", {}).get("ref", "")
+        number = pr.get("number")
+        if not head.startswith("template-update-") or head == branch:
+            continue
+        api(
+            f"https://api.github.com/repos/{repo}/issues/{number}/comments",
+            token,
+            method="POST",
+            body={"body": f"Superseded by the {tag} template update PR."},
+        )
+        api(
+            f"https://api.github.com/repos/{repo}/pulls/{number}",
+            token,
+            method="PATCH",
+            body={"state": "closed"},
+        )
+        closed.append(f"{head} (#{number})")
+    for ref in api(f"https://api.github.com/repos/{repo}/branches?per_page=100", token):
+        name = ref.get("name", "")
+        if name.startswith("template-update-") and name != branch:
+            api(
+                f"https://api.github.com/repos/{repo}/git/refs/heads/{name}",
+                token,
+                method="DELETE",
+            )
+    return closed
 
 
 def template_changes(owner: str, old: str, tag: str, token: str) -> tuple[str, str]:
@@ -248,7 +289,11 @@ def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Resu
         },
     )
     pr_url = response.get("html_url", "(url unavailable)")
-    return Result(plugin, repo, "updated", f"[{pr_url}]({pr_url}) ({old} -> {tag})")
+    detail = f"[{pr_url}]({pr_url}) ({old} -> {tag})"
+    superseded = supersede_updates(repo, branch, tag, token)
+    if superseded:
+        detail += "; superseded " + ", ".join(superseded)
+    return Result(plugin, repo, "updated", detail)
 
 
 def main() -> None:
