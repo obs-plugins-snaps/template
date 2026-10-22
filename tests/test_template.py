@@ -68,13 +68,27 @@ def test_title_is_derived(copie):
 
 
 def test_version_defaults_to_placeholder(copie):
-    """Without an explicit version the placeholder is used."""
-    assert "version: '0.1.0'" in snapcraft_yaml(make_project(copie))
+    """The version question feeds the source-tag pin, not a static version."""
+    assert "source-tag: '0.1.0'" in snapcraft_yaml(make_project(copie))
+
+
+def test_source_tag_is_derived_from_version(copie):
+    """The source tag is not a question: it is derived from the version."""
+    assert "source-tag: '0.1.0'" in snapcraft_yaml(make_project(copie))
+    assert "source-tag: '0.4.8'" in snapcraft_yaml(make_project(copie, version="0.4.8"))
+
+
+def test_adopt_info_replaces_static_version(copie):
+    """The snap version is adopted from the tagged source tree, not static."""
+    content = snapcraft_yaml(make_project(copie))
+    assert "adopt-info: source-record" in content
+    assert "version:" not in content.split("parts:")[0]
+    assert 'craftctl set version="$(git describe' in content
 
 
 def test_version_is_used_verbatim(copie):
     """An explicit version is rendered as-is, without any sanitization."""
-    assert "version: '0.4.8'" in snapcraft_yaml(make_project(copie, version="0.4.8"))
+    assert "source-tag: '0.4.8'" in snapcraft_yaml(make_project(copie, version="0.4.8"))
 
 
 def test_version_is_not_recorded_in_answers(copie):
@@ -185,7 +199,8 @@ def test_snapcraft_yaml_is_valid_yaml(copie):
     data = yaml.safe_load(snapcraft_yaml(make_project(copie)))
     assert data["name"] == "source-record-obs-studio"
     assert data["base"] == "core24"
-    assert data["version"] == "0.1.0"
+    assert data["adopt-info"] == "source-record"
+    assert "version" not in data
     assert data["confinement"] == "strict"
     assert data["slots"]["obs-plugins"]["interface"] == "content"
     assert data["parts"]["prepare-hook"]["plugin"] == "nil"
