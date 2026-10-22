@@ -30,3 +30,5 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["D", "PLR2004"]
+# Automation scripts shipped in workflows: stdlib-only, no public API.
+".github/scripts/*" = ["D101", "D103", "PLW1510", "PLC0415"]
