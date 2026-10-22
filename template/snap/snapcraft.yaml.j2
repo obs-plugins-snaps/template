@@ -1,6 +1,6 @@
 name: {{ snap_name }}
 base: core24
-version: '{{ version }}'
+adopt-info: {{ plugin_name }}
 title: {{ title }}
 summary: "{{ summary }}"
 description: |
@@ -54,6 +54,12 @@ parts:
     # Pin to the release matching the version above; edit by hand if the
     # upstream tag name differs (e.g. a 'v' prefix or a beta tag).
     source-tag: '{{ version }}'
+    # The snap version is adopted from the tagged source tree (see the
+    # top-level adopt-info), so the packaged bits and the store
+    # metadata always agree.
+    override-pull: |
+      craftctl default
+      craftctl set version="$(git describe --tags | sed 's/^v\([0-9]\)/\1/')"
     plugin: cmake
     build-environment:
       - CMAKE_PREFIX_PATH: "/snap/obs-studio/current/usr/"

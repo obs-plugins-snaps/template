@@ -33,7 +33,8 @@ copier copy \
 | `plugin_name` | Upstream plugin project name; lowercase letters, digits, dashes    |
 | `source_url`  | Git URL of the upstream plugin repository                          |
 | `summary`     | One-line summary (maximum 78 characters)                           |
-| `version`     | Version to package, optional (defaults to `0.1.0`)                 |
+| `version`     | Upstream release tag to package; becomes the snap version via      |
+|               | `adopt-info`, optional (defaults to `0.1.0`)                       |
 | `description` | Longer description, optional (defaults to the summary)             |
 | `license`     | SPDX license identifier, optional (omitted when empty)             |
 

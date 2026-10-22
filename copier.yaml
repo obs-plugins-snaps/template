@@ -50,7 +50,8 @@ summary:
 
 version:
   type: str
-  help: Version of the plugin to package (maximum 32 characters)
+  help: Upstream release tag to package (becomes the snap version; maximum 32
+    characters)
   default: "0.1.0"
   validator: >-
     {% if not (version | regex_search('^[a-zA-Z0-9](?:[a-zA-Z0-9:.+~-]{0,30}[a-zA-Z0-9+~])?$')) %}
