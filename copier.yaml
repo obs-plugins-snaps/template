@@ -54,6 +54,7 @@ source_tag:
     pin at bootstrap; afterwards bump the pin by editing
     snap/snapcraft.yaml directly - the snap version is computed from
     the tagged tree at build time)
+  default: "SET-ME!"
   validator: >-
     {% if source_tag is not none and not (source_tag | regex_search('^[a-zA-Z0-9](?:[a-zA-Z0-9:.+~-]{0,30}[a-zA-Z0-9+~])?$')) %}
     Snap versions allow up to 32 characters: letters, digits, and : . + ~ -
