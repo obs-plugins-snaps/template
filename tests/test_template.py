@@ -72,9 +72,10 @@ def test_version_defaults_to_placeholder(copie):
     assert "version: '0.1.0'" in snapcraft_yaml(make_project(copie))
 
 
-def test_source_tag_defaults_to_version(copie):
-    """Without an explicit source tag, the version is used to pin the source."""
+def test_source_tag_is_derived_from_version(copie):
+    """The source tag is not a question: it is derived from the version."""
     assert "source-tag: '0.1.0'" in snapcraft_yaml(make_project(copie))
+    assert "source-tag: '0.4.8'" in snapcraft_yaml(make_project(copie, version="0.4.8"))
 
 
 def test_version_is_used_verbatim(copie):
@@ -82,23 +83,9 @@ def test_version_is_used_verbatim(copie):
     assert "version: '0.4.8'" in snapcraft_yaml(make_project(copie, version="0.4.8"))
 
 
-def test_source_tag_is_used_verbatim(copie):
-    """An explicit source tag is rendered as-is."""
-    assert "source-tag: 'v2.1-rc1'" in snapcraft_yaml(
-        make_project(copie, version="2.1", source_tag="v2.1-rc1")
-    )
-
-
 def test_version_is_not_recorded_in_answers(copie):
     """The version is a secret question: not persisted for future updates."""
     assert "version" not in answers_file(make_project(copie, version="0.4.8"))
-
-
-def test_source_tag_is_not_recorded_in_answers(copie):
-    """The source tag is also secret: like the version, it changes per release."""
-    assert "source_tag" not in answers_file(
-        make_project(copie, version="0.4.8", source_tag="0.4.8")
-    )
 
 
 def test_license_defaults_to_omitted(copie):
