@@ -268,7 +268,7 @@ def test_promote_workflow_is_dispatchable(copie):
 
     promote = workflow["jobs"]["promote"]
     assert promote["uses"] == (
-        "obs-plugins-snaps/workflows/.github/workflows/promote-dispatch.yml@main"
+        "obs-plugins-snaps/workflows/.github/workflows/promote.yml@main"
     )
     assert promote["with"]["plugin_name"] == "source-record"
     assert promote["with"]["revision"] == "${{ github.event.inputs.revision }}"
