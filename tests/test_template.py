@@ -330,3 +330,28 @@ def test_bug_issue_template_rendered(copie):
     )
     assert native in content
     assert "{{" not in content and "{%" not in content
+
+
+def test_version_bump_workflow_opens_bump_prs(copie):
+    """version-bump.yaml opens PRs bumping source-tag to upstream releases."""
+    bump_yaml = (
+        make_project(copie).project_dir / ".github" / "workflows" / "version-bump.yaml"
+    )
+    workflow = yaml.safe_load(bump_yaml.read_text())
+    triggers = workflow[True]
+    assert triggers["schedule"] == [{"cron": "17 0 * * *"}]
+    assert triggers["workflow_dispatch"] is None
+    assert "push" not in triggers and "pull_request" not in triggers
+
+    steps = {s["id"]: s for s in workflow["jobs"]["bump"]["steps"] if "id" in s}
+    assert steps["app-token"]["uses"] == "actions/create-github-app-token@v3"
+    # The Actions expressions must survive rendering untouched: the workflow
+    # derives everything from snapcraft.yaml at runtime, not from answers.
+    assert steps["app-token"]["with"]["app-id"] == "${{ vars.APP_CLIENT_ID }}"
+    assert steps["app-token"]["with"]["private-key"] == "${{ secrets.APP_PRIVATE_KEY }}"
+
+    run = steps["release"]["run"]
+    assert "repos/$repo/releases/latest" in run
+    assert "No GitHub source + source-tag pair" in run
+    open_pr = steps["open-bump-pr"]["run"]
+    assert "gh pr create" in open_pr

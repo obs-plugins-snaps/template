@@ -1,0 +1,104 @@
+{# Version bump: daily check for a newer upstream release, opening a PR that
+   pins source-tag to it. Deliberately generic: everything is derived from
+   this repo's own snap/snapcraft.yaml at runtime, so the whole file can be
+   Jinja-raw and needs no template answers. Repos whose upstream is not
+   GitHub-releases-shaped edit the fetch step below; source-less repos exit
+   at the applicability check. #}
+{% raw %}
+name: Version bump
+
+on:
+  schedule:
+    # Daily, a few minutes after midnight UTC.
+    - cron: "17 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  bump:
+    name: 📦 Bump source-tag to the latest upstream release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # A token from the organization's GitHub App is required: PRs opened
+      # with the default GITHUB_TOKEN do not trigger other workflows, so the
+      # build CI would never run on the bump PR.
+      - name: Generate installation token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Check for a newer upstream release
+        id: release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          # Source URL and current pin from our own snapcraft.yaml.
+          source_url="$(sed -n 's/^    source: \(.*\)$/\1/p' snap/snapcraft.yaml)"
+          current_tag="$(sed -n "s/^    source-tag: ['\"]\?\([^'\"]*\)['\"]\?$/\1/p" snap/snapcraft.yaml)"
+
+          # Only GitHub-hosted, tag-pinned plugins can be bumped; anything
+          # else (e.g. source-less packages) quietly skips.
+          if ! [[ "$source_url" =~ ^https://github\.com/([^/]+)/([^/]+)(\.git)?$ ]] \
+             || [ -z "$current_tag" ]; then
+            echo "No GitHub source + source-tag pair in snap/snapcraft.yaml; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+
+          # releases/latest excludes drafts and prereleases, so beta and rc
+          # tags never leak into a bump.
+          latest_tag="$(gh api "repos/$repo/releases/latest" --jq .tag_name)"
+
+          if [ "$latest_tag" = "$current_tag" ]; then
+            echo "Already packaging the latest release ($latest_tag); nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "repo=$repo"
+            echo "latest_tag=$latest_tag"
+            echo "skip=false"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open bump PR
+        id: open-bump-pr
+        if: steps.release.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ steps.release.outputs.repo }}
+          LATEST_TAG: ${{ steps.release.outputs.latest_tag }}
+        run: |
+          set -euo pipefail
+
+          branch="bump-to-${LATEST_TAG}"
+          if gh pr list --head "$branch" --state open --json number -q '.[0].number' | grep -q .; then
+            echo "PR for branch $branch already open; nothing to do."
+            exit 0
+          fi
+
+          # Identity of the App the token belongs to; commits authored this
+          # way get GitHub's web-flow signature and pass branch protection.
+          bot_login="$(gh api user --jq .login)"
+          bot_id="$(gh api user --jq .id)"
+          git config user.name "$bot_login"
+          git config user.email "$bot_id+$bot_login@users.noreply.github.com"
+
+          git checkout -b "$branch"
+          sed -i "s/^    source-tag: .*/    source-tag: '${LATEST_TAG}'/" snap/snapcraft.yaml
+          git add snap/snapcraft.yaml
+          git commit -m "chore: bump source-tag to ${LATEST_TAG}"
+          git push origin "$branch"
+
+          gh pr create \
+            --title "chore: bump source-tag to ${LATEST_TAG}" \
+            --body "Automatic version bump. Upstream [\`$REPO\`](https://github.com/$REPO) published release [\`$LATEST_TAG\`](https://github.com/$REPO/releases/tag/$LATEST_TAG), so this pins \`source-tag\` to it; the adopted snap version follows the tagged tree. The build published from merging this PR goes to \`candidate\`."
+{% endraw %}
