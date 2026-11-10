@@ -1,5 +1,7 @@
 """Tests for the OBS Studio plugin snap copier template."""
 
+import json
+
 import yaml
 
 #: Answers for every question with no default.
@@ -330,3 +332,27 @@ def test_bug_issue_template_rendered(copie):
     )
     assert native in content
     assert "{{" not in content and "{%" not in content
+
+
+def renovate_config(result):
+    """Return the rendered renovate.json parsed as JSON."""
+    return json.loads((result.project_dir / "renovate.json").read_text())
+
+
+def test_renovate_config_rendered(copie):
+    """GitHub-hosted plugins get a Renovate regex manager for source-tag."""
+    config = renovate_config(make_project(copie))
+    assert config["schedule"] == ["after 4am and before 8am"]
+    (manager,) = config["customManagers"]
+    assert manager["customType"] == "regex"
+    assert manager["fileMatch"] == ["^snap/snapcraft\\.yaml$"]
+    assert manager["matchStrings"] == ["source-tag:\\s*'(?<currentValue>[^']+)'"]
+    assert manager["datasourceTemplate"] == "github-releases"
+    # depName is derived from source_url, without the scheme or .git suffix.
+    assert manager["depNameTemplate"] == "exeldro/obs-source-record"
+
+
+def test_renovate_config_skipped_for_non_github_source(copie):
+    """Plugins not hosted on GitHub get no renovate.json at all."""
+    result = make_project(copie, source_url="https://ndi.video")
+    assert not (result.project_dir / "renovate.json").exists()
