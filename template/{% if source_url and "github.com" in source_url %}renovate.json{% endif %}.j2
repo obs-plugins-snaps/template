@@ -1,0 +1,20 @@
+{# Renovate configuration for automated upstream release bumps: the regex
+   manager matches the source-tag pin in snap/snapcraft.yaml against the
+   upstream repo's latest GitHub release and opens a bump PR. Rendered only
+   for plugins hosted on GitHub; source-less or externally hosted plugins
+   (e.g. ndi-runtime) get no file. Override per repo by editing this file:
+   non-GitHub upstreams switch datasourceTemplate (git-tags, gitlab-tags,
+   ...). #}
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "schedule": ["after 4am and before 8am"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^snap/snapcraft\\.yaml$"],
+      "matchStrings": ["source-tag:\\s*'(?<currentValue>[^']+)'"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "{{ source_url | regex_replace('^https://github\\.com/', '') | regex_replace('\\.git$', '') }}"
+    }
+  ]
+}
