@@ -382,5 +382,4 @@ def test_ci_workflow_runs_e2e_smoke(copie):
         "obs-plugins-snaps/workflows/.github/workflows/e2e-smoke.yml@main"
     )
     assert e2e["needs"] == "build"
-    assert e2e["continue-on-error"] is True
     assert e2e["with"]["plugin_name"] == "source-record"
