@@ -342,6 +342,7 @@ def renovate_config(result):
 def test_renovate_config_rendered(copie):
     """GitHub-hosted plugins get a Renovate regex manager for source-tag."""
     config = renovate_config(make_project(copie))
+    assert config["dependencyDashboard"] is True
     assert config["schedule"] == ["after 4am and before 8am"]
     (manager,) = config["customManagers"]
     assert manager["customType"] == "regex"
