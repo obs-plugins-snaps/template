@@ -1,9 +1,10 @@
-"""Smoke tests: OBS opens, is drivable, and the plugin is loaded.
+"""Template-default e2e tests.
 
-These are the template defaults, kept deliberately generic: they hold
-for every plugin in the fleet. Plugins extend the suite in this
-directory with interaction tests for their own UI surface (mark them
-``interaction``; the CI e2e job runs the ``smoke`` tier by default).
+OBS opens, is drivable, and the plugin is loaded. These are kept
+deliberately generic: they hold for every plugin in the fleet. Plugins
+extend the suite in this directory with interaction tests for their own
+UI surface, marked ``interaction`` — those run only when explicitly
+requested (``-m interaction``); the default run deselects them.
 """
 
 from __future__ import annotations
@@ -11,11 +12,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 from conftest import WAIT_SECONDS
-
-#: The template defaults are the smoke tier; e2e-smoke.yml runs `-m smoke`.
-pytestmark = pytest.mark.smoke
 
 #: Upstream plugin project name (recorded by the copier template).
 PLUGIN_NAME = "{{ plugin_name }}"

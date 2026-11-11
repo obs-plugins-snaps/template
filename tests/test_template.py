@@ -359,27 +359,31 @@ def test_renovate_config_skipped_for_non_github_source(copie):
 
 
 def test_e2e_suite_is_included(copie):
-    """The e2e smoke scaffold is part of the generated project."""
+    """The e2e scaffold is part of the generated project."""
     e2e = make_project(copie).project_dir / "tests" / "e2e"
-    for name in ("conftest.py", "test_smoke.py", "pytest.ini"):
+    for name in ("conftest.py", "test_defaults.py", "pytest.ini"):
         assert (e2e / name).is_file()
+    # Interaction tests are opt-in: the default run deselects them.
+    ini = (e2e / "pytest.ini").read_text()
+    assert 'addopts = -m "not interaction"' in ini
+    assert "markers" in ini
 
 
 def test_e2e_tests_render_plugin_name(copie):
     """The e2e suite knows the plugin it tests."""
-    test_smoke = (
-        make_project(copie).project_dir / "tests" / "e2e" / "test_smoke.py"
+    test_defaults = (
+        make_project(copie).project_dir / "tests" / "e2e" / "test_defaults.py"
     ).read_text()
-    assert 'PLUGIN_NAME = "source-record"' in test_smoke
+    assert 'PLUGIN_NAME = "source-record"' in test_defaults
 
 
-def test_ci_workflow_runs_e2e_smoke(copie):
-    """ci.yaml also runs the e2e smoke tier, non-blocking, after the build."""
+def test_ci_workflow_runs_e2e(copie):
+    """ci.yaml also runs e2e tests, non-blocking, after the build."""
     ci_yaml = make_project(copie).project_dir / ".github" / "workflows" / "ci.yaml"
     workflow = yaml.safe_load(ci_yaml.read_text())
     e2e = workflow["jobs"]["e2e"]
     assert e2e["uses"] == (
-        "obs-plugins-snaps/workflows/.github/workflows/e2e-smoke.yml@main"
+        "obs-plugins-snaps/workflows/.github/workflows/e2e.yml@main"
     )
     assert e2e["needs"] == "build"
     assert e2e["with"]["plugin_name"] == "source-record"

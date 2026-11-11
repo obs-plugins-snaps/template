@@ -9,11 +9,11 @@ jobs:
     with:
       plugin_name: "{{ plugin_name }}"
 
-  # E2E smoke tests against the snap built above (hence `needs: build`,
+  # E2E tests against the snap built above (hence `needs: build`,
   # for the artifact). Not a required check while the suite soaks;
   # promote it to one in branch protection once stable.
   e2e:
     needs: build
-    uses: obs-plugins-snaps/workflows/.github/workflows/e2e-smoke.yml@main
+    uses: obs-plugins-snaps/workflows/.github/workflows/e2e.yml@main
     with:
       plugin_name: "{{ plugin_name }}"

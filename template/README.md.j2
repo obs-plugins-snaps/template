@@ -37,13 +37,15 @@ The plugin is built against the libobs headers shipped in the
 The snap starts in `devel` grade; flip it to `stable` in
 `snap/snapcraft.yaml` once the packaged plugin is verified to work.
 
-## E2E smoke tests
+## E2E tests
 
 The repository ships a small pytest suite (`tests/e2e`) that starts a
 headless Wayland session, drives OBS through the accessibility tree, and
-checks that the plugin's module is actually loaded. CI runs the `smoke`
-tier on every pull request against the exact snap built in that run
-(non-blocking while the suite soaks).
+checks that the plugin's module is actually loaded. CI runs it on every
+pull request against the exact snap built in that run (non-blocking
+while the suite soaks). Plugin-specific interaction tests extend the
+suite marked `interaction` and only run when explicitly requested
+(`pytest -m interaction`).
 
 To run it locally, install the snap and connect it as above, then run
 the suite from the shared workflows checkout:
@@ -51,7 +53,7 @@ the suite from the shared workflows checkout:
 ```shell
 E2E_OBS_HOME="$PWD/e2e-home" \
   uv run --project /path/to/obs-plugins-snaps/workflows \
-  pytest tests/e2e -m smoke
+  pytest tests/e2e
 ```
 
 Screenshots, logs and state are collected under `$E2E_OBS_HOME`
