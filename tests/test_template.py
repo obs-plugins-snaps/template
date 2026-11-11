@@ -346,7 +346,7 @@ def test_renovate_config_rendered(copie):
     assert config["schedule"] == ["after 4am and before 8am"]
     (manager,) = config["customManagers"]
     assert manager["customType"] == "regex"
-    assert manager["fileMatch"] == ["^snap/snapcraft\\.yaml$"]
+    assert manager["managerFilePatterns"] == ["/^snap/snapcraft\\.yaml$/"]
     assert manager["matchStrings"] == ["source-tag:\\s*'(?<currentValue>[^']+)'"]
     assert manager["datasourceTemplate"] == "github-releases"
     # depName is derived from source_url, without the scheme or .git suffix.
