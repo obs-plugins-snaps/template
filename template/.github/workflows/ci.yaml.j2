@@ -1,4 +1,4 @@
-name: Build snap
+name: CI
 
 on:
   pull_request:
@@ -6,5 +6,15 @@ on:
 jobs:
   build:
     uses: obs-plugins-snaps/workflows/.github/workflows/build-snap.yml@main
+    with:
+      plugin_name: "{{ plugin_name }}"
+
+  # E2E smoke tests against the snap built above (hence `needs: build`,
+  # for the artifact). Non-blocking while the suite soaks; promote to a
+  # required check by removing `continue-on-error`.
+  e2e:
+    needs: build
+    continue-on-error: true
+    uses: obs-plugins-snaps/workflows/.github/workflows/e2e-smoke.yml@main
     with:
       plugin_name: "{{ plugin_name }}"
