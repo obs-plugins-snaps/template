@@ -1,4 +1,4 @@
-"""Fixtures for the e2e smoke tests.
+"""Fixtures for the e2e tests.
 
 The tests drive the ``e2e-obs`` CLI — from the shared
 ``obs-plugins-snaps/workflows`` repository — as a subprocess: the CLI is
