@@ -2,9 +2,7 @@
 
 OBS opens, is drivable, and the plugin is loaded. These are kept
 deliberately generic: they hold for every plugin in the fleet. Plugins
-extend the suite in this directory with interaction tests for their own
-UI surface, marked ``interaction`` — those run only when explicitly
-requested (``-m interaction``); the default run deselects them.
+extend the suite in this directory with tests for their own UI surface.
 """
 
 from __future__ import annotations

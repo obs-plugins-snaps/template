@@ -43,9 +43,8 @@ The repository ships a small pytest suite (`tests/e2e`) that starts a
 headless Wayland session, drives OBS through the accessibility tree, and
 checks that the plugin's module is actually loaded. CI runs it on every
 pull request against the exact snap built in that run (non-blocking
-while the suite soaks). Plugin-specific interaction tests extend the
-suite marked `interaction` and only run when explicitly requested
-(`pytest -m interaction`).
+while the suite soaks). Plugins extend the suite with tests for their
+own UI surface.
 
 To run it locally, install the snap and connect it as above, then run
 the suite from the shared workflows checkout:

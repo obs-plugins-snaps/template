@@ -1,8 +1,0 @@
-[pytest]
-# Interaction tests are plugin-specific and opt-in: the template
-# defaults run everywhere; interaction tests only when requested
-# (pytest -m interaction). A later -m on the command line overrides
-# this default.
-addopts = -m "not interaction"
-markers =
-    interaction: plugin-specific UI interaction tests (opt-in; run with -m interaction)
