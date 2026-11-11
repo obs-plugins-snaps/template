@@ -205,7 +205,22 @@ def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Resu
             )
 
             copier = ["uvx", "--from", "copier", "copier"]
-            run(*copier, "update", "--defaults", "--vcs-ref", tag, cwd=work)
+            # Branding assets (e.g. snap/gui/icon.png) are repo-owned after
+            # the initial render: repos that rebrand them replace the binary
+            # by hand, and copier cannot merge binaries, so updates would
+            # silently clobber the local file with the template default
+            # (--defaults resolves binary conflicts towards the template).
+            # Exclude them from updates; fresh copies still get the default.
+            run(
+                *copier,
+                "update",
+                "--defaults",
+                "--vcs-ref",
+                tag,
+                "-x",
+                "snap/gui/icon.png",
+                cwd=work,
+            )
 
             if not run("git", "status", "--porcelain", cwd=work):
                 return Result(plugin, repo, "skipped", "no changes rendered")
