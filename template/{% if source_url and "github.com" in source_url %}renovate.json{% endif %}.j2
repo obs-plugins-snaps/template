@@ -12,7 +12,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^snap/snapcraft\\.yaml$"],
+      "managerFilePatterns": ["/^snap/snapcraft\\.yaml$/"],
       "matchStrings": ["source-tag:\\s*'(?<currentValue>[^']+)'"],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "{{ source_url | regex_replace('^https://github\\.com/', '') | regex_replace('\\.git$', '') }}"
