@@ -1,4 +1,4 @@
-"""Template-default e2e tests.
+"""Basic e2e tests shipped by the template.
 
 OBS opens, is drivable, and the plugin is loaded. These are kept
 deliberately generic: they hold for every plugin in the fleet. Plugins

@@ -361,7 +361,7 @@ def test_renovate_config_skipped_for_non_github_source(copie):
 def test_e2e_suite_is_included(copie):
     """The e2e scaffold is part of the generated project."""
     e2e = make_project(copie).project_dir / "tests" / "e2e"
-    for name in ("conftest.py", "test_defaults.py", "pytest.ini"):
+    for name in ("conftest.py", "test_basic.py", "pytest.ini"):
         assert (e2e / name).is_file()
     # Interaction tests are opt-in: the default run deselects them.
     ini = (e2e / "pytest.ini").read_text()
@@ -372,7 +372,7 @@ def test_e2e_suite_is_included(copie):
 def test_e2e_tests_render_plugin_name(copie):
     """The e2e suite knows the plugin it tests."""
     test_defaults = (
-        make_project(copie).project_dir / "tests" / "e2e" / "test_defaults.py"
+        make_project(copie).project_dir / "tests" / "e2e" / "test_basic.py"
     ).read_text()
     assert 'PLUGIN_NAME = "source-record"' in test_defaults
 
