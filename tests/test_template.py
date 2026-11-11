@@ -378,8 +378,6 @@ def test_ci_workflow_runs_e2e(copie):
     ci_yaml = make_project(copie).project_dir / ".github" / "workflows" / "ci.yaml"
     workflow = yaml.safe_load(ci_yaml.read_text())
     e2e = workflow["jobs"]["e2e"]
-    assert e2e["uses"] == (
-        "obs-plugins-snaps/workflows/.github/workflows/e2e.yml@main"
-    )
+    assert e2e["uses"] == "obs-plugins-snaps/workflows/.github/workflows/e2e.yml@main"
     assert e2e["needs"] == "build"
     assert e2e["with"]["plugin_name"] == "source-record"
