@@ -1,7 +1,11 @@
 """Tests for the OBS Studio plugin snap copier template."""
 
+import importlib.util
 import json
+import shutil
+import subprocess
 
+import pytest
 import yaml
 
 #: Answers for every question with no default.
@@ -382,3 +386,34 @@ def test_ci_workflow_runs_e2e(copie):
     assert e2e["uses"] == "obs-plugins-snaps/workflows/.github/workflows/e2e.yml@main"
     assert e2e["needs"] == "build"
     assert e2e["with"]["plugin_name"] == "source-record"
+
+
+def test_run_e2e_surfaces_harness_stderr(copie, monkeypatch):
+    """A failing harness command reports the harness' own diagnosis.
+
+    CalledProcessError tracebacks do not include captured output, so
+    without this the harness' stderr would never reach the CI log.
+    """
+    result = make_project(copie)
+    conftest_path = result.project_dir / "tests" / "e2e" / "conftest.py"
+    spec = importlib.util.spec_from_file_location("rendered_conftest", conftest_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/e2e-obs")
+
+    def failing_run(*args, **kwargs):
+        raise subprocess.CalledProcessError(
+            1,
+            ["e2e-obs", "start"],
+            output="",
+            stderr="error: sway produced no Wayland socket\n",
+        )
+
+    monkeypatch.setattr(subprocess, "run", failing_run)
+
+    with pytest.raises(pytest.fail.Exception) as excinfo:
+        module.run_e2e("start")
+    message = str(excinfo.value)
+    assert "e2e-obs start failed (exit 1)" in message
+    assert "error: sway produced no Wayland socket" in message

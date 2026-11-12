@@ -32,9 +32,18 @@ def run_e2e(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
             "workspace (uv sync --all-packages) and run these tests through "
             "`uv run --project <workflows checkout> pytest tests/e2e`"
         )
-    return subprocess.run(
-        ["e2e-obs", *args], check=check, capture_output=True, text=True
-    )
+    try:
+        return subprocess.run(
+            ["e2e-obs", *args], check=check, capture_output=True, text=True
+        )
+    except subprocess.CalledProcessError as exc:
+        # CalledProcessError tracebacks do not show captured output, so
+        # the harness' own diagnosis (on stderr) would never reach the
+        # CI log — re-raise with it attached instead.
+        pytest.fail(
+            f"e2e-obs {' '.join(args)} failed "
+            f"(exit {exc.returncode}):\n{exc.stdout}{exc.stderr}"
+        )
 
 
 @pytest.fixture(scope="session")
