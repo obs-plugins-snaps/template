@@ -22,21 +22,23 @@ OBS_VERSION_RE = r"OBS \d+\."
 def test_obs_is_on_the_accessibility_bus(obs, e2e) -> None:
     """The accessibility bus must see OBS for any UI driving to work."""
     apps = e2e("atspi", "apps")
+    assert apps.returncode == 0, apps.stderr
     assert "obs" in apps.stdout.split()
 
 
 def test_about_dialog_shows_the_obs_version(obs, e2e) -> None:
     """Input (menu click) and dialog rendering both work."""
-    e2e("atspi", "click", "menu item", "About", "--wait", WAIT_SECONDS)
-    matched = e2e(
-        "atspi", "assert", OBS_VERSION_RE, "--wait", WAIT_SECONDS, check=False
-    )
-    assert matched.returncode == 0, matched.stderr or "OBS version not found"
+    clicked = e2e("atspi", "click", "menu item", "About", "--wait", WAIT_SECONDS)
+    assert clicked.returncode == 0, clicked.stderr
+    matched = e2e("atspi", "assert", OBS_VERSION_RE, "--wait", WAIT_SECONDS)
+    assert matched.returncode == 0, matched.stderr
 
 
 def test_plugin_module_is_loaded(obs, e2e) -> None:
     """OBS lists the plugin's module among its loaded modules."""
-    log = Path(e2e("obslog").stdout.strip())
+    result = e2e("obslog")
+    assert result.returncode == 0, result.stderr
+    log = Path(result.stdout.strip())
     content = log.read_text(errors="replace")
     # OBS prints a "Loaded Modules:" section at startup, closed by a
     # dashed separator. Note that "Failed to load 'en-US' text for
