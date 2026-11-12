@@ -5,7 +5,12 @@ Reads the plugin list from the meta repository (plugins/*.json records are
 the single source of truth) and runs `copier update` on each plugin
 repository whose `.copier-answers.yml` records an older template commit.
 Each update lands on a `template-update-<tag>` branch with a pull request
-for human review.
+for human review; updates that hit conflicts open as drafts, with the
+conflicted files listed in the body.
+
+copier leaves conflicted files with inline markers (and the git index
+unmerged) but still exits 0, so conflicts are detected with
+`git diff --diff-filter=U` and never inferred from the exit code.
 
 Environment:
     GITHUB_REPOSITORY       owner/name of the template repository
@@ -138,16 +143,19 @@ def template_changes(owner: str, old: str, tag: str, token: str) -> tuple[str, s
     return "\n\n".join(sections), comparison["html_url"]
 
 
-def repo_diffstat(work: Path) -> str:
+def repo_diffstat(work: Path, conflicts: list[str]) -> str:
     """Render the applied diff (what this repository actually got)."""
     lines = []
+    if conflicts:
+        lines.append("**Conflicts detected** - resolve the marked files in this PR:")
+        lines += [f"- `{path}`" for path in conflicts]
     try:
         stat = run("git", "diff", "--stat", "HEAD", cwd=work)
     except RuntimeError:
         # Defensive: conflicted merges leave the index in states some git
-        # plumbing refuses; fall back to the porcelain status below.
+        # plumbing refuses; the porcelain status below still tells the
+        # story, and the conflicts are listed above anyway.
         stat = ""
-        lines.append("**Conflicts detected** - resolve the marked files in this PR.")
     if stat:
         lines += ["```diff", stat, "```"]
     status = run("git", "status", "--porcelain", cwd=work)
@@ -225,7 +233,17 @@ def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Resu
             if not run("git", "status", "--porcelain", cwd=work):
                 return Result(plugin, repo, "skipped", "no changes rendered")
 
-            diffstat = repo_diffstat(work)
+            # copier update exits 0 even when it hit conflicts (inline
+            # markers in the files, unmerged index); detect them explicitly
+            # so the pull request can carry the news.
+            conflicts = [
+                path
+                for path in run(
+                    "git", "diff", "--name-only", "--diff-filter=U", cwd=work
+                ).splitlines()
+                if path
+            ]
+            diffstat = repo_diffstat(work, conflicts)
 
             run("git", "checkout", "-b", branch, cwd=work)
             run("git", "add", "-A", cwd=work)
@@ -265,6 +283,9 @@ def update_one(plugin: str, repo: str, tag: str, token: str, owner: str) -> Resu
             "title": f"Update template to {tag}",
             "head": branch,
             "base": "main",
+            # Conflicted updates need a human before review is meaningful,
+            # so they open as drafts; clean updates are ready for review.
+            "draft": bool(conflicts),
             "body": "\n\n".join(body_parts) + "\n",
         },
     )
