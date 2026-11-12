@@ -13,7 +13,6 @@ that; for local runs, follow the instructions in the repository README.
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -24,17 +23,14 @@ import pytest
 WAIT_SECONDS = "10"
 
 
-def run_e2e(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    """Run an ``e2e-obs`` command, failing loudly when it is not installed."""
-    if shutil.which("e2e-obs") is None:
-        pytest.fail(
-            "e2e-obs is not on PATH; sync the obs-plugins-snaps/workflows "
-            "workspace (uv sync --all-packages) and run these tests through "
-            "`uv run --project <workflows checkout> pytest tests/e2e`"
-        )
-    return subprocess.run(
-        ["e2e-obs", *args], check=check, capture_output=True, text=True
-    )
+def run_e2e(*args: str) -> subprocess.CompletedProcess[str]:
+    """Run an ``e2e-obs`` command and return the raw result for assertions.
+
+    The result is never inspected here: tests assert on ``returncode``
+    and the captured streams themselves, so a failure shows the actual
+    stderr and exit code in the test report.
+    """
+    return subprocess.run(["e2e-obs", *args], capture_output=True, text=True)
 
 
 @pytest.fixture(scope="session")
@@ -54,4 +50,6 @@ def obs() -> Path:
     try:
         yield Path(os.environ.get("E2E_OBS_HOME") or os.getcwd()).resolve()
     finally:
-        run_e2e("stop", check=False)
+        # Nothing raises, so teardown is naturally safe: a failed stop is
+        # visible in the harness logs, not as a test error.
+        run_e2e("stop")
