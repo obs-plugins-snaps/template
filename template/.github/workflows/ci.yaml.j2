@@ -1,4 +1,4 @@
-name: Build snap
+name: CI
 
 on:
   pull_request:
@@ -6,5 +6,14 @@ on:
 jobs:
   build:
     uses: obs-plugins-snaps/workflows/.github/workflows/build-snap.yml@main
+    with:
+      plugin_name: "{{ plugin_name }}"
+
+  # E2E tests against the snap built above (hence `needs: build`,
+  # for the artifact). Not a required check while the suite soaks;
+  # promote it to one in branch protection once stable.
+  e2e:
+    needs: build
+    uses: obs-plugins-snaps/workflows/.github/workflows/e2e.yml@main
     with:
       plugin_name: "{{ plugin_name }}"
