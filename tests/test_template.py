@@ -1,7 +1,10 @@
 """Tests for the OBS Studio plugin snap copier template."""
 
+import importlib.util
 import json
+import subprocess
 
+import pytest
 import yaml
 
 #: Answers for every question with no default.
@@ -382,3 +385,30 @@ def test_ci_workflow_runs_e2e(copie):
     assert e2e["uses"] == "obs-plugins-snaps/workflows/.github/workflows/e2e.yml@main"
     assert e2e["needs"] == "build"
     assert e2e["with"]["plugin_name"] == "source-record"
+
+
+def test_obs_fixture_asserts_on_failed_start(copie, monkeypatch):
+    """A failed session start fails the fixture with the harness' stderr.
+
+    Without the assert, a failed ``e2e-obs start`` would yield anyway
+    and the tests would fail with generic downstream errors, hiding the
+    harness' diagnosis.
+    """
+    result = make_project(copie)
+    conftest_path = result.project_dir / "tests" / "e2e" / "conftest.py"
+    spec = importlib.util.spec_from_file_location("rendered_conftest", conftest_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    failed = subprocess.CompletedProcess(
+        ["e2e-obs", "start"],
+        returncode=1,
+        stdout="",
+        stderr="error: the obs-harness-sway unit is not running:\nboom\n",
+    )
+    monkeypatch.setattr(module, "run_e2e", lambda *args: failed)
+
+    fixture = module.obs.__wrapped__
+    with pytest.raises(AssertionError) as excinfo:
+        next(fixture())
+    assert "the obs-harness-sway unit is not running" in str(excinfo.value)
