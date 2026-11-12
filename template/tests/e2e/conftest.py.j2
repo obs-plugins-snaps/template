@@ -46,7 +46,8 @@ def obs() -> Path:
     Yields the harness home (``$E2E_OBS_HOME``), where screenshots
     (``shots/``), logs (``logs/``) and state (``.state/``) land.
     """
-    run_e2e("start")
+    started = run_e2e("start")
+    assert started.returncode == 0, started.stderr
     try:
         yield Path(os.environ.get("E2E_OBS_HOME") or os.getcwd()).resolve()
     finally:
